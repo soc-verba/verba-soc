@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verba | Deine Daten gehören Dir</title>
+    
+    <!-- Fonts & Styling -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- SDKs -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg: #f8fafc;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: #0f172a;
+            letter-spacing: -0.02em;
+        }
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .card-modern {
+            background: white;
+            border-radius: 2.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.02), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+        .input-modern {
+            background: #f1f5f9;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .input-modern:focus {
+            background: white;
+            border-color: #e2e8f0;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            opacity: 0.95;
+            transform: scale(0.98);
+        }
+        [x-cloak] { display: none !important; }
+        
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+    </style>
+</head>
+<body x-data="app()" x-init="init()" class="min-h-screen pb-24 md:pb-0 md:pt-24" x-cloak>
+
+    <!-- Navigation -->
+    <template x-if="user">
+        <nav class="fixed bottom-6 left-6 right-6 z-50 md:top-0 md:bottom-auto md:left-0 md:right-0 md:m-0">
+            <div class="max-w-2xl mx-auto glass-nav rounded-[2rem] md:rounded-none px-8 py-4 shadow-2xl md:shadow-none flex justify-between items-center border border-white/20">
+                <div class="hidden md:flex items-center gap-2">
+                    <div class="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                        <i data-lucide="zap" class="w-5 h-5 fill-current"></i>
+                    </div>
+                    <h1 class="text-xl font-extrabold tracking-tighter">Verba</h1>
+                </div>
+                
+                <div class="flex flex-1 justify-around md:flex-none md:gap-12">
+                    <button @click="switchView('feed')" class="relative group py-2" :class="view === 'feed' ? 'text-indigo-600' : 'text-slate-400'">
+                        <i data-lucide="layout-grid" class="w-6 h-6"></i>
+                        <span x-show="view === 'feed'" class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>
+                    </button>
+                    <button @click="switchView('search')" class="relative group py-2" :class="view === 'search' ? 'text-indigo-600' : 'text-slate-400'">
+                        <i data-lucide="search" class="w-6 h-6"></i>
+                        <span x-show="view === 'search'" class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>
+                    </button>
+                    <button @click="switchView('create')" class="relative group py-2" :class="view === 'create' ? 'text-indigo-600' : 'text-slate-400'">
+                        <i data-lucide="plus-circle" class="w-6 h-6"></i>
+                        <span x-show="view === 'create'" class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>
+                    </button>
+                    <button @click="switchView('settings')" class="relative group py-2" :class="view === 'settings' ? 'text-indigo-600' : 'text-slate-400'">
+                        <i data-lucide="settings" class="w-6 h-6"></i>
+                        <span x-show="view === 'settings'" class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>
+                    </button>
+                </div>
+                
+                <div class="hidden md:block w-8"></div>
+            </div>
+        </nav>
+    </template>
+
+    <!-- Content Area -->
+    <main class="max-w-xl mx-auto px-6">
+        
+        <!-- Welcome / Auth -->
+        <template x-if="!user && !initialLoading">
+            <div class="mt-20 text-center">
+                <div class="mb-12 animate-float">
+                    <div class="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white mx-auto shadow-2xl shadow-indigo-200">
+                        <i data-lucide="zap" class="w-10 h-10 fill-current"></i>
+                    </div>
+                </div>
+                
+                <div class="card-modern p-10">
+                    <h2 class="text-3xl font-black mb-2" x-text="authMode === 'login' ? 'Willkommen zurück' : 'Neu hier?'"></h2>
+                    <p class="text-slate-400 mb-8 font-medium">Die minimalistische Art zu teilen.</p>
+                    
+                    <div class="space-y-4">
+                        <input type="email" x-model="authEmail" placeholder="E-Mail Adresse" class="w-full p-5 rounded-3xl input-modern outline-none font-medium text-sm">
+                        <input type="password" x-model="authPassword" placeholder="Passwort" class="w-full p-5 rounded-3xl input-modern outline-none font-medium text-sm">
+                        
+                        <button @click="handleAuth()" class="w-full py-5 btn-primary text-white rounded-3xl font-bold text-lg shadow-xl shadow-indigo-100 flex justify-center items-center mt-4" :disabled="loading">
+                            <span x-show="!loading" x-text="authMode === 'login' ? 'Anmelden' : 'Account erstellen'"></span>
+                            <div x-show="loading" class="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        </button>
+                        
+                        <button @click="authMode = authMode === 'login' ? 'signup' : 'login'" class="mt-6 text-slate-400 text-sm font-semibold hover:text-indigo-600 transition-colors">
+                            <span x-text="authMode === 'login' ? 'Noch kein Mitglied? Registrieren' : 'Bereits dabei? Einloggen'"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Feed Section -->
+        <template x-if="user && view === 'feed'">
+            <div class="space-y-8 pt-8">
+                <div class="flex items-end justify-between px-2">
+                    <div>
+                        <p class="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-1" x-text="feedMode === 'discovery' ? 'Entdecken' : 'Deine Kreise'"></p>
+                        <h2 class="text-4xl font-black text-slate-900">Journal</h2>
+                    </div>
+                    <div class="flex gap-4 mb-1">
+                        <button @click="feedMode = 'discovery'; fetchPosts()" class="text-sm font-bold transition-all px-3 py-1 rounded-full" :class="feedMode === 'discovery' ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400'">Für dich</button>
+                        <button @click="feedMode = 'following'; fetchPosts()" class="text-sm font-bold transition-all px-3 py-1 rounded-full" :class="feedMode === 'following' ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400'">Gefolgt</button>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <template x-for="post in posts" :key="post.id">
+                        <article class="card-modern p-8 group relative border border-white">
+                            <div class="flex items-center justify-between mb-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-xs" x-text="post.author_name.substring(0,2).toUpperCase()"></div>
+                                    <div>
+                                        <p class="font-bold text-slate-900 text-sm" x-text="post.author_name"></p>
+                                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter" x-text="new Date(post.created_at).toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'})"></p>
+                                    </div>
+                                </div>
+                                <template x-if="post.user_id === user.id">
+                                    <button @click="deletePost(post.id)" class="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </template>
+                            </div>
+                            <p class="text-slate-600 leading-relaxed text-lg font-medium" x-text="post.content"></p>
+                        </article>
+                    </template>
+
+                    <template x-if="posts.length === 0">
+                        <div class="py-20 text-center card-modern border-2 border-dashed border-slate-200 bg-transparent shadow-none">
+                            <i data-lucide="layers" class="w-12 h-12 text-slate-200 mx-auto mb-4"></i>
+                            <p class="text-slate-400 font-bold" x-text="feedMode === 'discovery' ? 'Stille im Äther.' : 'Folge anderen, um hier Beiträge zu sehen.'"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        <!-- Search Section -->
+        <template x-if="user && view === 'search'">
+            <div class="pt-8 space-y-8">
+                <h2 class="text-4xl font-black text-slate-900 mb-8 px-2">Suche</h2>
+                <div class="relative mb-8">
+                    <i data-lucide="search" class="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5"></i>
+                    <input type="text" x-model="searchQuery" @input.debounce.300ms="searchUsers()" placeholder="Namen finden..." class="w-full p-6 pl-16 rounded-[2rem] input-modern outline-none font-bold text-lg">
+                </div>
+
+                <div class="space-y-4">
+                    <template x-for="foundUser in searchResults" :key="foundUser.id">
+                        <div class="card-modern p-6 flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-black" x-text="foundUser.username.substring(0,1).toUpperCase()"></div>
+                                <div>
+                                    <p class="font-bold text-slate-900" x-text="foundUser.username"></p>
+                                    <p class="text-xs text-slate-400 font-medium">Mitglied</p>
+                                </div>
+                            </div>
+                            <template x-if="foundUser.id !== user.id">
+                                <button @click="toggleFollow(foundUser.id)" 
+                                    class="px-6 py-2 rounded-2xl font-bold text-sm transition-all"
+                                    :class="followingIds.includes(foundUser.id) ? 'bg-slate-100 text-slate-500' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'">
+                                    <span x-text="followingIds.includes(foundUser.id) ? 'Entfolgen' : 'Folgen'"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="searchResults.length === 0 && searchQuery.length > 0">
+                        <p class="text-center text-slate-400 font-bold py-10">Keine Profile gefunden.</p>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        <!-- Create Section -->
+        <template x-if="user && view === 'create'">
+            <div class="pt-8">
+                <h2 class="text-4xl font-black text-slate-900 mb-8 px-2">Gedanken</h2>
+                <div class="card-modern p-8">
+                    <textarea x-model="newPostContent" placeholder="Was brennt dir auf der Seele?" class="w-full h-48 p-0 text-xl font-medium text-slate-700 placeholder:text-slate-300 bg-transparent border-none outline-none resize-none mb-8"></textarea>
+                    
+                    <div class="flex items-center justify-end pt-6 border-t border-slate-50">
+                        <button @click="createPost()" class="px-8 py-4 btn-primary text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 flex items-center gap-2" :disabled="loading || !newPostContent.trim()">
+                             <span x-show="!loading">Veröffentlichen</span>
+                             <div x-show="loading" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Settings Section -->
+        <template x-if="user && view === 'settings'">
+            <div class="pt-8 space-y-8">
+                <h2 class="text-4xl font-black text-slate-900 mb-8 px-2">Profil</h2>
+                
+                <div class="card-modern p-10">
+                    <div class="flex items-center gap-6 mb-10">
+                        <div class="w-20 h-20 rounded-[2rem] bg-indigo-50 flex items-center justify-center text-indigo-600 text-2xl font-black" x-text="profile.username ? profile.username.substring(0,1).toUpperCase() : '?'"></div>
+                        <div>
+                            <p class="text-2xl font-black text-slate-900" x-text="profile.username || 'Unbekannt'"></p>
+                            <p class="text-slate-400 font-bold text-sm" x-text="user.email"></p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="space-y-2">
+                            <label class="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Anzeigename</label>
+                            <input type="text" x-model="profile.username" class="w-full p-5 rounded-3xl input-modern outline-none font-bold">
+                        </div>
+                        
+                        <div class="flex flex-col gap-3 pt-4">
+                            <button @click="updateProfile()" class="w-full py-5 bg-slate-900 text-white rounded-3xl font-bold shadow-xl hover:bg-black transition-all" :disabled="loading">
+                                <span x-show="!loading">Sichern</span>
+                                <div x-show="loading" class="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            </button>
+                            <button @click="logout()" class="w-full py-5 bg-slate-100 text-slate-500 rounded-3xl font-bold hover:bg-slate-200 transition-all">Logout</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-modern p-8 border border-red-50 shadow-red-50/50">
+                    <div class="flex items-start gap-4">
+                        <div class="p-3 bg-red-50 text-red-600 rounded-2xl"><i data-lucide="shield-alert" class="w-6 h-6"></i></div>
+                        <div>
+                            <h3 class="font-black text-slate-900 mb-1 text-lg">Account löschen</h3>
+                            <p class="text-slate-400 text-sm font-medium mb-6">Alle Daten werden unwiderruflich von unseren Servern entfernt.</p>
+                            <button @click="showAccountDeletionModal = true" class="text-red-600 font-bold text-sm hover:underline">Vorgang starten →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+    </main>
+
+    <!-- Global Loader -->
+    <div x-show="initialLoading" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
+        <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-slate-400 mt-6 font-bold tracking-tighter uppercase text-xs">Verba wird geladen</p>
+    </div>
+
+    <!-- Delete Modal -->
+    <div x-show="showAccountDeletionModal" class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl" x-transition>
+        <div class="bg-white rounded-[3rem] p-12 max-w-sm w-full shadow-2xl text-center border border-white" @click.away="showAccountDeletionModal = false">
+            <h3 class="text-3xl font-black text-slate-900 mb-4">Sicher?</h3>
+            <p class="text-slate-400 font-medium mb-10 leading-relaxed">Dein Account und alle Beiträge werden für immer gelöscht.</p>
+            <div class="flex flex-col gap-3">
+                <button @click="deleteAccount()" class="w-full py-5 bg-red-600 text-white rounded-3xl font-bold flex justify-center items-center shadow-lg shadow-red-100">
+                    <span x-show="!loading">Endgültig löschen</span>
+                    <div x-show="loading" class="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                </button>
+                <button @click="showAccountDeletionModal = false" class="w-full py-4 text-slate-400 font-bold hover:text-slate-600">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://dnmtoksbkdqpjkrzinqm.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_NTz3JgM2THa8I65mq2j5CQ_VxjbONqb";
+        
+        let _sb;
+        try {
+            _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } catch (e) {
+            console.error("Supabase Error:", e);
+        }
+
+        function app() {
+            return {
+                user: null,
+                profile: { username: '' },
+                view: 'feed',
+                feedMode: 'discovery', // discovery or following
+                authMode: 'login',
+                authEmail: '',
+                authPassword: '',
+                loading: false,
+                initialLoading: true,
+                posts: [],
+                newPostContent: '',
+                showAccountDeletionModal: false,
+                
+                searchQuery: '',
+                searchResults: [],
+                followingIds: [],
+
+                async init() {
+                    const { data: { user } } = await _sb.auth.getUser();
+                    this.user = user;
+                    
+                    if (this.user) {
+                        await this.fetchProfile();
+                        await this.fetchFollowing();
+                        await this.fetchPosts();
+                    }
+
+                    _sb.auth.onAuthStateChange((_event, session) => {
+                        this.user = session?.user || null;
+                        if (this.user) {
+                            this.fetchProfile();
+                            this.fetchFollowing();
+                            this.fetchPosts();
+                        }
+                    });
+
+                    this.initialLoading = false;
+                    this.refreshIcons();
+                },
+
+                async handleAuth() {
+                    this.loading = true;
+                    try {
+                        let res;
+                        if (this.authMode === 'login') {
+                            res = await _sb.auth.signInWithPassword({ email: this.authEmail, password: this.authPassword });
+                        } else {
+                            res = await _sb.auth.signUp({ email: this.authEmail, password: this.authPassword });
+                            // Erstelle Initialprofil bei Registrierung
+                            if (res.data.user) {
+                                await _sb.from('profiles').insert({ id: res.data.user.id, username: this.authEmail.split('@')[0] });
+                            }
+                        }
+                        if (res.error) throw res.error;
+                    } catch (e) { 
+                        alert("Fehler: " + e.message); 
+                    } finally { 
+                        this.loading = false; 
+                    }
+                },
+
+                async logout() {
+                    await _sb.auth.signOut();
+                    window.location.reload();
+                },
+
+                async deleteAccount() {
+                    if (!this.user) return;
+                    this.loading = true;
+                    try {
+                        await _sb.from('posts').delete().eq('user_id', this.user.id);
+                        await _sb.from('profiles').delete().eq('id', this.user.id);
+                        await _sb.auth.signOut();
+                        window.location.reload();
+                    } catch (e) {
+                        alert(e.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async fetchProfile() {
+                    if (!this.user) return;
+                    const { data } = await _sb.from('profiles').select('*').eq('id', this.user.id).maybeSingle();
+                    if (data) this.profile = data;
+                    this.refreshIcons();
+                },
+
+                async fetchFollowing() {
+                    if (!this.user) return;
+                    const { data } = await _sb.from('follows').select('following_id').eq('follower_id', this.user.id);
+                    if (data) {
+                        this.followingIds = data.map(f => f.following_id);
+                    }
+                },
+
+                async fetchPosts() {
+                    let query = _sb.from('posts').select('*').order('created_at', { ascending: false });
+                    
+                    if (this.feedMode === 'following') {
+                        if (this.followingIds.length > 0) {
+                            query = query.in('user_id', this.followingIds);
+                        } else {
+                            this.posts = [];
+                            return;
+                        }
+                    } else {
+                        query = query.limit(20);
+                    }
+
+                    const { data } = await query;
+                    
+                    if (data) {
+                        const postsWithNames = await Promise.all(data.map(async (post) => {
+                            const { data: prof } = await _sb.from('profiles').select('username').eq('id', post.user_id).maybeSingle();
+                            return { ...post, author_name: prof?.username || 'Anonym' };
+                        }));
+                        this.posts = postsWithNames;
+                    }
+                    this.refreshIcons();
+                },
+
+                async searchUsers() {
+                    if (!this.searchQuery.trim()) {
+                        this.searchResults = [];
+                        return;
+                    }
+                    const { data } = await _sb.from('profiles')
+                        .select('id, username')
+                        .ilike('username', `%${this.searchQuery}%`)
+                        .limit(10);
+                    
+                    if (data) this.searchResults = data;
+                    this.refreshIcons();
+                },
+
+                async toggleFollow(targetId) {
+                    if (this.followingIds.includes(targetId)) {
+                        await _sb.from('follows').delete().eq('follower_id', this.user.id).eq('following_id', targetId);
+                        this.followingIds = this.followingIds.filter(id => id !== targetId);
+                    } else {
+                        await _sb.from('follows').insert({ follower_id: this.user.id, following_id: targetId });
+                        this.followingIds.push(targetId);
+                    }
+                    if (this.feedMode === 'following') await this.fetchPosts();
+                },
+
+                async createPost() {
+                    if (!this.newPostContent.trim()) return;
+                    this.loading = true;
+                    const { error } = await _sb.from('posts').insert({
+                        user_id: this.user.id,
+                        content: this.newPostContent
+                    });
+                    if (error) {
+                        alert(error.message);
+                    } else {
+                        this.newPostContent = '';
+                        this.view = 'feed';
+                        await this.fetchPosts();
+                    }
+                    this.loading = false;
+                },
+
+                async deletePost(id) {
+                    const { error } = await _sb.from('posts').delete().eq('id', id);
+                    if (!error) await this.fetchPosts();
+                },
+
+                async updateProfile() {
+                    if (!this.user) return;
+                    this.loading = true;
+                    
+                    // Upsert stellt sicher, dass das Profil erstellt wird, falls es fehlt
+                    const { error } = await _sb.from('profiles').upsert({ 
+                        id: this.user.id, 
+                        username: this.profile.username 
+                    });
+
+                    if (error) {
+                        alert("RLS Fehler: " + error.message + "\nBitte prüfe, ob die UPDATE-Policy im SQL Editor gesetzt wurde.");
+                    } else {
+                        alert("Profil erfolgreich aktualisiert!");
+                        await this.fetchProfile();
+                    }
+                    this.loading = false;
+                },
+
+                switchView(v) { 
+                    this.view = v; 
+                    this.refreshIcons(); 
+                },
+
+                refreshIcons() { 
+                    setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50);
+                }
+            }
+        }
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</body>
+</html>
