@@ -3,4 +3,6 @@ verba is an ai slop and doomscrolling free privacy first text social media platf
 
 Test account: email: open@open.com password: 123456789
 
-site: https://soc-verba.github.io/verba-soc/
+site: verba.abrdns.com
+
+not hosted site: https://soc-verba.github.io/verba-soc/
